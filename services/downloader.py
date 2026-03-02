@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from pathlib import Path
 
 import yt_dlp
@@ -29,12 +30,11 @@ class Downloader:
         subs = info.get("subtitles", {})
         auto_subs = info.get("automatic_captions", {})
 
-        # Prefer: manual vi/en → auto vi/en
-        for lang_prefs in [["vi", "en"], ["vi", "en"]]:
-            source = subs if lang_prefs == ["vi", "en"] else auto_subs
-            for lang in lang_prefs:
+        # Prefer: manual vi/en -> auto vi/en
+        for source, is_auto in [(subs, False), (auto_subs, True)]:
+            for lang in ["vi", "en"]:
                 if lang in source:
-                    return await self._download_subtitle(url, lang, source is auto_subs)
+                    return await self._download_subtitle(url, lang, is_auto)
 
         return None
 
@@ -119,8 +119,6 @@ class Downloader:
             ):
                 continue
             # Remove HTML tags
-            import re
-
             clean = re.sub(r"<[^>]+>", "", line)
             if clean and clean not in seen:
                 seen.add(clean)

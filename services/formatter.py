@@ -22,14 +22,17 @@ Rules:
 class Formatter:
     def __init__(self, config: Config) -> None:
         genai.configure(api_key=config.gemini_api_key)
-        self._model = genai.GenerativeModel("gemini-2.0-flash")
+        self._model = genai.GenerativeModel(
+            "gemini-2.0-flash",
+            system_instruction=SYSTEM_PROMPT,
+        )
 
     async def format_transcript(self, transcript: str, title: str) -> str:
         """Format raw transcript into structured script using Gemini."""
         prompt = (
             f"Video title: {title}\n\n"
             f"Raw transcript:\n{transcript}\n\n"
-            "Format this transcript into a well-structured, readable script following the rules above."
+            "Format this transcript into a well-structured, readable script."
         )
 
         try:

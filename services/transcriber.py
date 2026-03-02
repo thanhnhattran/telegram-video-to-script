@@ -39,26 +39,27 @@ class Transcriber:
 
         try:
             # Tier 2: Groq Whisper (free)
-            transcript = await self._transcribe_groq(audio_path)
-            if transcript:
-                logger.info("Using Groq Whisper for %s", url)
-                return transcript
-        except Exception:
-            logger.warning("Groq Whisper failed, falling back to OpenAI", exc_info=True)
-
-        try:
-            # Tier 3: OpenAI Whisper (paid)
-            if self._config.openai_api_key:
-                transcript = await self._transcribe_openai(audio_path)
+            try:
+                transcript = await self._transcribe_groq(audio_path)
                 if transcript:
-                    logger.info("Using OpenAI Whisper for %s", url)
+                    logger.info("Using Groq Whisper for %s", url)
                     return transcript
-        except Exception:
-            logger.error("OpenAI Whisper also failed", exc_info=True)
+            except Exception:
+                logger.warning("Groq Whisper failed, falling back to OpenAI", exc_info=True)
+
+            # Tier 3: OpenAI Whisper (paid)
+            try:
+                if self._config.openai_api_key:
+                    transcript = await self._transcribe_openai(audio_path)
+                    if transcript:
+                        logger.info("Using OpenAI Whisper for %s", url)
+                        return transcript
+            except Exception:
+                logger.error("OpenAI Whisper also failed", exc_info=True)
+
+            return None
         finally:
             audio_path.unlink(missing_ok=True)
-
-        return None
 
     async def _transcribe_groq(self, audio_path: Path) -> str | None:
         """Transcribe using Groq Whisper large-v3 API."""

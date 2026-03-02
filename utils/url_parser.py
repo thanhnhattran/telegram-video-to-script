@@ -28,12 +28,18 @@ def parse_video_url(text: str) -> tuple[Platform, str, str] | None:
         match = pattern.search(text)
         if match:
             video_id = match.group(1)
-            return Platform.YOUTUBE, video_id, match.group(0)
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return Platform.YOUTUBE, video_id, url
 
     for pattern in _TT_PATTERNS:
         match = pattern.search(text)
         if match:
             video_id = match.group(1)
-            return Platform.TIKTOK, video_id, match.group(0)
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return Platform.TIKTOK, video_id, url
 
     return None

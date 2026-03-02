@@ -16,25 +16,31 @@ class OutputHandler:
     async def send(self, message: types.Message, script: str, title: str) -> None:
         """Send script as message(s) or file based on length."""
         if len(script) <= self._max_length:
-            await message.answer(script, parse_mode="Markdown")
+            try:
+                await message.answer(script, parse_mode="Markdown")
+            except Exception:
+                await message.answer(script)
             return
 
-        # Long script → send file + short summary
+        # Long script -> send file + short summary
         file_path = Path(self._temp_dir) / f"{_safe_filename(title)}.md"
         file_path.write_text(script, encoding="utf-8")
 
-        # Send summary message
-        summary = self._extract_summary(script)
-        await message.answer(
-            f"📄 Script dài ({len(script)} ký tự), gửi file đính kèm.\n\n"
-            f"**Tóm tắt:**\n{summary}",
-            parse_mode="Markdown",
-        )
+        try:
+            summary = self._extract_summary(script)
+            summary_text = (
+                f"Script dai ({len(script)} ky tu), gui file dinh kem.\n\n"
+                f"Tom tat:\n{summary}"
+            )
+            try:
+                await message.answer(summary_text, parse_mode="Markdown")
+            except Exception:
+                await message.answer(summary_text)
 
-        # Send file
-        doc = FSInputFile(str(file_path), filename=f"{_safe_filename(title)}.md")
-        await message.answer_document(doc)
-        file_path.unlink(missing_ok=True)
+            doc = FSInputFile(str(file_path), filename=f"{_safe_filename(title)}.md")
+            await message.answer_document(doc)
+        finally:
+            file_path.unlink(missing_ok=True)
 
     def _extract_summary(self, script: str) -> str:
         """Extract Key Takeaways section or first 500 chars."""

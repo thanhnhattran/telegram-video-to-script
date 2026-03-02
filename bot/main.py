@@ -3,6 +3,7 @@ import logging
 import os
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import ErrorEvent
 from dotenv import load_dotenv
 
 from bot.config import Config
@@ -24,6 +25,18 @@ async def main() -> None:
     dp = Dispatcher()
     dp["config"] = config
     dp.include_router(router)
+
+    @dp.error()
+    async def on_error(event: ErrorEvent) -> bool:
+        logger.exception("Unhandled error: %s", event.exception)
+        if event.update and event.update.message:
+            try:
+                await event.update.message.answer(
+                    "Loi he thong. Vui long thu lai sau."
+                )
+            except Exception:
+                pass
+        return True
 
     logger.info("Bot started")
     await dp.start_polling(bot)

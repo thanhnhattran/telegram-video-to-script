@@ -10,4 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python health_check.py || exit 1
+
 CMD ["python", "-m", "bot.main"]

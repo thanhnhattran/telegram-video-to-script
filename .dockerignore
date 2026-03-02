@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+__pycache__
+*.pyc
+*.pyo
+*.md
+plans/
+.claude/
+.vscode/
