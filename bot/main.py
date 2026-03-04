@@ -4,6 +4,7 @@ import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import TelegramAPIServer
 from aiogram.types import ErrorEvent
 from dotenv import load_dotenv
 
@@ -22,7 +23,9 @@ async def main() -> None:
     config = Config.from_env()
     os.makedirs(config.temp_dir, exist_ok=True)
 
-    session = AiohttpSession(api=config.telegram_api_url)
+    session = AiohttpSession(
+        api=TelegramAPIServer.from_base(config.telegram_api_url)
+    )
     bot = Bot(token=config.telegram_token, session=session)
     dp = Dispatcher()
     dp["config"] = config

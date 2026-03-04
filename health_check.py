@@ -10,7 +10,10 @@ async def check() -> int:
 
         from aiogram import Bot
         from aiogram.client.session.aiohttp import AiohttpSession
-        session = AiohttpSession(api=config.telegram_api_url)
+        from aiogram.client.telegram import TelegramAPIServer
+        session = AiohttpSession(
+            api=TelegramAPIServer.from_base(config.telegram_api_url)
+        )
         bot = Bot(token=config.telegram_token, session=session)
         try:
             me = await bot.get_me()
