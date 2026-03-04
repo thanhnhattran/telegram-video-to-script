@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import subprocess
 from pathlib import Path
 
 import httpx
@@ -8,6 +10,9 @@ from services.downloader import Downloader
 from utils.url_parser import Platform
 
 logger = logging.getLogger(__name__)
+
+WHISPER_MAX_BYTES = 24 * 1024 * 1024  # 24MB (safe margin under Whisper 25MB limit)
+CHUNK_DURATION_SECONDS = 600  # 10-minute chunks
 
 
 class Transcriber:
@@ -37,29 +42,71 @@ class Transcriber:
             logger.error("Audio file not found: %s", audio_path)
             return None
 
+        chunks: list[Path] = []
         try:
-            # Tier 2: Groq Whisper (free)
-            try:
-                transcript = await self._transcribe_groq(audio_path)
-                if transcript:
-                    logger.info("Using Groq Whisper for %s", url)
-                    return transcript
-            except Exception:
-                logger.warning("Groq Whisper failed, falling back to OpenAI", exc_info=True)
+            chunks = await self._maybe_split_audio(audio_path)
+            transcripts = []
+            for chunk in chunks:
+                text = await self._transcribe_with_fallback(chunk)
+                if text:
+                    transcripts.append(text)
+            return " ".join(transcripts) if transcripts else None
+        finally:
+            # Clean up chunks directory if audio was split
+            if chunks and chunks != [audio_path]:
+                for chunk in chunks:
+                    chunk.unlink(missing_ok=True)
+                try:
+                    chunks[0].parent.rmdir()
+                except Exception:
+                    pass
+            audio_path.unlink(missing_ok=True)
 
-            # Tier 3: OpenAI Whisper (paid)
+    async def _maybe_split_audio(self, audio_path: Path) -> list[Path]:
+        """Return [audio_path] if under limit, else split into 10-min chunks."""
+        if audio_path.stat().st_size <= WHISPER_MAX_BYTES:
+            return [audio_path]
+
+        size_mb = audio_path.stat().st_size / 1024 / 1024
+        logger.info("Audio %.1fMB exceeds Whisper limit, splitting into chunks", size_mb)
+
+        chunks_dir = audio_path.parent / f"{audio_path.stem}_chunks"
+        chunks_dir.mkdir(exist_ok=True)
+
+        await asyncio.to_thread(
+            subprocess.run,
+            [
+                "ffmpeg", "-i", str(audio_path),
+                "-f", "segment",
+                "-segment_time", str(CHUNK_DURATION_SECONDS),
+                "-c", "copy",
+                str(chunks_dir / "chunk_%03d.mp3"),
+                "-y",
+            ],
+            capture_output=True,
+            check=True,
+        )
+
+        chunks = sorted(chunks_dir.glob("chunk_*.mp3"))
+        logger.info("Split into %d chunks", len(chunks))
+        return chunks
+
+    async def _transcribe_with_fallback(self, audio_path: Path) -> str | None:
+        """Try Groq first, fall back to OpenAI."""
+        try:
+            result = await self._transcribe_groq(audio_path)
+            if result:
+                return result
+        except Exception:
+            logger.warning("Groq Whisper failed, falling back to OpenAI", exc_info=True)
+
+        if self._config.openai_api_key:
             try:
-                if self._config.openai_api_key:
-                    transcript = await self._transcribe_openai(audio_path)
-                    if transcript:
-                        logger.info("Using OpenAI Whisper for %s", url)
-                        return transcript
+                return await self._transcribe_openai(audio_path)
             except Exception:
                 logger.error("OpenAI Whisper also failed", exc_info=True)
 
-            return None
-        finally:
-            audio_path.unlink(missing_ok=True)
+        return None
 
     async def _transcribe_groq(self, audio_path: Path) -> str | None:
         """Transcribe using Groq Whisper large-v3 API."""

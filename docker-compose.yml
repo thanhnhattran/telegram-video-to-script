@@ -5,12 +5,12 @@ services:
     restart: unless-stopped
     env_file: .env
     tmpfs:
-      - /tmp/video-to-script:size=256m
+      - /tmp/video-to-script:size=512m
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1024M
         reservations:
           cpus: "0.25"
           memory: 128M

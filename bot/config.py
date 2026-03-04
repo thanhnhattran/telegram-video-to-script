@@ -8,7 +8,7 @@ class Config:
     groq_api_key: str
     openai_api_key: str
     gemini_api_key: str
-    max_video_duration: int = 900  # 15 minutes in seconds
+    max_video_duration: int = 1800  # 30 minutes in seconds
     temp_dir: str = "/tmp/video-to-script"
     max_message_length: int = 4000
     telegram_api_url: str = "https://api.telegram.org"
@@ -20,7 +20,7 @@ class Config:
             groq_api_key=os.environ["GROQ_API_KEY"],
             openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
             gemini_api_key=os.environ["GEMINI_API_KEY"],
-            max_video_duration=int(os.environ.get("MAX_VIDEO_DURATION", "900")),
+            max_video_duration=int(os.environ.get("MAX_VIDEO_DURATION", "1800")),
             temp_dir=os.environ.get("TEMP_DIR", "/tmp/video-to-script"),
             telegram_api_url=os.environ.get("TELEGRAM_API_URL", "https://api.telegram.org"),
         )

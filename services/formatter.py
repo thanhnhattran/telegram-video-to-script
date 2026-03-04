@@ -1,6 +1,7 @@
 import logging
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from bot.config import Config
 
@@ -21,11 +22,7 @@ Rules:
 
 class Formatter:
     def __init__(self, config: Config) -> None:
-        genai.configure(api_key=config.gemini_api_key)
-        self._model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            system_instruction=SYSTEM_PROMPT,
-        )
+        self._client = genai.Client(api_key=config.gemini_api_key)
 
     async def format_transcript(self, transcript: str, title: str) -> str:
         """Format raw transcript into structured script using Gemini."""
@@ -36,9 +33,11 @@ class Formatter:
         )
 
         try:
-            response = await self._model.generate_content_async(
-                [{"role": "user", "parts": [prompt]}],
-                generation_config=genai.types.GenerationConfig(
+            response = await self._client.aio.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
                     temperature=0.3,
                     max_output_tokens=4096,
                 ),

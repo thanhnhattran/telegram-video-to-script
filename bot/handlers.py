@@ -33,7 +33,7 @@ async def cmd_start(message: types.Message) -> None:
         "Hỗ trợ:\n"
         "- YouTube (video, Shorts)\n"
         "- TikTok\n\n"
-        "Giới hạn: video tối đa 15 phút."
+        "Giới hạn: video tối đa 30 phút."
     )
 
 
