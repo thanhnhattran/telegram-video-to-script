@@ -11,6 +11,7 @@ class Config:
     max_video_duration: int = 900  # 15 minutes in seconds
     temp_dir: str = "/tmp/video-to-script"
     max_message_length: int = 4000
+    telegram_api_url: str = "https://api.telegram.org"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -21,4 +22,5 @@ class Config:
             gemini_api_key=os.environ["GEMINI_API_KEY"],
             max_video_duration=int(os.environ.get("MAX_VIDEO_DURATION", "900")),
             temp_dir=os.environ.get("TEMP_DIR", "/tmp/video-to-script"),
+            telegram_api_url=os.environ.get("TELEGRAM_API_URL", "https://api.telegram.org"),
         )
