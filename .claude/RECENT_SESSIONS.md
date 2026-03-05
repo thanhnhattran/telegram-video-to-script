@@ -1,6 +1,12 @@
 # Recent Sessions
 
 ---
+## [2026-03-05] - Tăng video 30 phút + audio chunking + google-genai + deploy
+**Focus:** Tăng giới hạn video 15→30 phút, thêm audio chunking tự động cho Whisper 25MB limit, migrate google-generativeai→google-genai, tăng tmpfs/memory Docker, deploy VPS thành công
+**Commits:** 86421a1 feat: tăng giới hạn video 30 phút + audio chunking + migrate google-genai
+**Next:** Không có task mới — bot healthy trên VPS
+
+---
 ## [2026-03-02 17:00] - Full Pipeline: Bug fixes, Docker, Deploy
 **Focus:** Fix 10 bugs from code review, add Docker Compose with health check/resource limits, add monitoring (/status + health_check.py), deploy to VPS
 **Commits:**
