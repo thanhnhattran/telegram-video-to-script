@@ -134,7 +134,7 @@ class Transcriber:
                             mime_type=uploaded.mime_type,
                         ),
                         types.Part.from_text(
-                            "Transcribe this audio exactly as spoken. "
+                            text="Transcribe this audio exactly as spoken. "
                             "Keep the original language. "
                             "Output only the transcription, no timestamps or labels."
                         ),

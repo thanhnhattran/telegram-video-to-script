@@ -57,20 +57,20 @@ class ChatManager:
             return None
 
         session.history.append(
-            types.Content(role="user", parts=[types.Part.from_text(user_message)])
+            types.Content(role="user", parts=[types.Part.from_text(text=user_message)])
         )
 
         # Build contents: transcript context + conversation history
         contents = [
             types.Content(
                 role="user",
-                parts=[types.Part.from_text(
+                parts=[types.Part.from_text(text=
                     f"Here is the video transcript for context:\n\n{session.transcript}"
                 )],
             ),
             types.Content(
                 role="model",
-                parts=[types.Part.from_text(
+                parts=[types.Part.from_text(text=
                     "Got it. I've read the transcript. How can I help you?"
                 )],
             ),
@@ -91,7 +91,7 @@ class ChatManager:
             if reply:
                 session.history.append(
                     types.Content(
-                        role="model", parts=[types.Part.from_text(reply)]
+                        role="model", parts=[types.Part.from_text(text=reply)]
                     )
                 )
             return reply
