@@ -7,6 +7,7 @@ from aiogram import Router, types
 from aiogram.filters import CommandStart, Command
 
 from bot.config import Config
+from services.chat import ChatManager
 from services.downloader import Downloader
 from services.transcriber import Transcriber
 from services.formatter import Formatter
@@ -19,6 +20,14 @@ logger = logging.getLogger(__name__)
 _processing_semaphore = asyncio.Semaphore(3)
 _start_time = time.time()
 _last_processed: float | None = None
+_chat_manager: ChatManager | None = None
+
+
+def get_chat_manager(config: Config) -> ChatManager:
+    global _chat_manager
+    if _chat_manager is None:
+        _chat_manager = ChatManager(config)
+    return _chat_manager
 
 
 def mark_processed() -> None:
@@ -91,11 +100,33 @@ async def handle_message(message: types.Message, config: Config) -> None:
     if not message.text:
         return
 
+    chat_mgr = get_chat_manager(config)
+
+    # Check if this is a reply to a script message → route to chat
+    if message.reply_to_message and message.reply_to_message.message_id:
+        reply_to_id = message.reply_to_message.message_id
+        chat_id = message.chat.id
+        if chat_mgr.is_reply_to_script(chat_id, reply_to_id):
+            reply = await chat_mgr.chat(chat_id, message.text)
+            if reply:
+                sent = await message.answer(reply)
+                # Track bot reply so user can reply to it too
+                session = chat_mgr.get_session(chat_id)
+                if session:
+                    session.script_message_ids.add(sent.message_id)
+            else:
+                await message.answer("Không thể trả lời. Thử lại sau.")
+            return
+
     parsed = parse_video_url(message.text.strip())
     if not parsed:
         return  # Ignore non-URL messages
 
     platform, video_id, url = parsed
+
+    # New URL → clear old chat session
+    chat_mgr.remove_session(message.chat.id)
+
     status_msg = await message.answer("⏳ Đang xử lý video...")
 
     if _processing_semaphore.locked():
@@ -132,10 +163,13 @@ async def handle_message(message: types.Message, config: Config) -> None:
             title = info.get("title", "Untitled")
             script = await formatter.format_transcript(transcript, title)
 
-            # Step 4: Send output
-            await output_handler.send(message, script, title)
+            # Step 4: Send output & create chat session
+            sent_ids = await output_handler.send(message, script, title)
             await status_msg.delete()
             mark_processed()
+
+            # Create chat session so user can reply to discuss
+            chat_mgr.create_session(message.chat.id, script, sent_ids)
 
         except Exception:
             logger.exception("Error processing video: %s", url)

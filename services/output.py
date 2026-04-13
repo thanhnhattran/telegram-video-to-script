@@ -13,19 +13,20 @@ class OutputHandler:
         self._max_length = config.max_message_length
         self._temp_dir = config.temp_dir
 
-    async def send(self, message: types.Message, script: str, title: str) -> None:
-        """Send script as message(s) or file based on length."""
+    async def send(self, message: types.Message, script: str, title: str) -> list[int]:
+        """Send script as message(s) or file based on length. Returns sent message IDs."""
         if len(script) <= self._max_length:
             try:
-                await message.answer(script, parse_mode="Markdown")
+                sent = await message.answer(script, parse_mode="Markdown")
             except Exception:
-                await message.answer(script)
-            return
+                sent = await message.answer(script)
+            return [sent.message_id]
 
         # Long script -> send file + short summary
         file_path = Path(self._temp_dir) / f"{_safe_filename(title)}.md"
         file_path.write_text(script, encoding="utf-8")
 
+        sent_ids: list[int] = []
         try:
             summary = self._extract_summary(script)
             summary_text = (
@@ -33,14 +34,17 @@ class OutputHandler:
                 f"Tom tat:\n{summary}"
             )
             try:
-                await message.answer(summary_text, parse_mode="Markdown")
+                sent = await message.answer(summary_text, parse_mode="Markdown")
             except Exception:
-                await message.answer(summary_text)
+                sent = await message.answer(summary_text)
+            sent_ids.append(sent.message_id)
 
             doc = FSInputFile(str(file_path), filename=f"{_safe_filename(title)}.md")
-            await message.answer_document(doc)
+            sent_doc = await message.answer_document(doc)
+            sent_ids.append(sent_doc.message_id)
         finally:
             file_path.unlink(missing_ok=True)
+        return sent_ids
 
     def _extract_summary(self, script: str) -> str:
         """Extract Key Takeaways section or first 500 chars."""

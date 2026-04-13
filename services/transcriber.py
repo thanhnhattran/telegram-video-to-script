@@ -4,6 +4,8 @@ import subprocess
 from pathlib import Path
 
 import httpx
+from google import genai
+from google.genai import types
 
 from bot.config import Config
 from services.downloader import Downloader
@@ -19,6 +21,7 @@ class Transcriber:
     def __init__(self, config: Config) -> None:
         self._config = config
         self._downloader = Downloader(config)
+        self._gemini = genai.Client(api_key=config.gemini_api_key)
 
     async def get_transcript(self, url: str, platform: Platform, info: dict) -> str | None:
         """Get transcript using the 3-tier fallback pipeline.
@@ -92,7 +95,16 @@ class Transcriber:
         return chunks
 
     async def _transcribe_with_fallback(self, audio_path: Path) -> str | None:
-        """Try Groq first, fall back to OpenAI."""
+        """Try Gemini Flash first, fall back to Groq then OpenAI Whisper."""
+        # Tier 1: Gemini Flash (best Vietnamese support)
+        try:
+            result = await self._transcribe_gemini(audio_path)
+            if result:
+                return result
+        except Exception:
+            logger.warning("Gemini STT failed, falling back to Groq", exc_info=True)
+
+        # Tier 2: Groq Whisper
         try:
             result = await self._transcribe_groq(audio_path)
             if result:
@@ -100,6 +112,7 @@ class Transcriber:
         except Exception:
             logger.warning("Groq Whisper failed, falling back to OpenAI", exc_info=True)
 
+        # Tier 3: OpenAI Whisper
         if self._config.openai_api_key:
             try:
                 return await self._transcribe_openai(audio_path)
@@ -107,6 +120,33 @@ class Transcriber:
                 logger.error("OpenAI Whisper also failed", exc_info=True)
 
         return None
+
+    async def _transcribe_gemini(self, audio_path: Path) -> str | None:
+        """Transcribe using Gemini Flash with native audio understanding."""
+        uploaded = await self._gemini.aio.files.upload(file=audio_path)
+        try:
+            response = await self._gemini.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Content(parts=[
+                        types.Part.from_uri(
+                            file_uri=uploaded.uri,
+                            mime_type=uploaded.mime_type,
+                        ),
+                        types.Part.from_text(
+                            "Transcribe this audio exactly as spoken. "
+                            "Keep the original language. "
+                            "Output only the transcription, no timestamps or labels."
+                        ),
+                    ]),
+                ],
+                config=types.GenerateContentConfig(temperature=0.1),
+            )
+            text = response.text.strip() if response.text else None
+            logger.info("Gemini STT succeeded (%d chars)", len(text) if text else 0)
+            return text
+        finally:
+            await self._gemini.aio.files.delete(name=uploaded.name)
 
     async def _transcribe_groq(self, audio_path: Path) -> str | None:
         """Transcribe using Groq Whisper large-v3 API."""

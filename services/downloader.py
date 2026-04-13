@@ -30,9 +30,9 @@ class Downloader:
         subs = info.get("subtitles", {})
         auto_subs = info.get("automatic_captions", {})
 
-        # Prefer: manual vi/en -> auto vi/en
-        for source, is_auto in [(subs, False), (auto_subs, True)]:
-            for lang in ["vi", "en"]:
+        # Prefer: vi (manual → auto) → en (manual → auto)
+        for lang in ["vi", "en"]:
+            for source, is_auto in [(subs, False), (auto_subs, True)]:
                 if lang in source:
                     return await self._download_subtitle(url, lang, is_auto)
 
